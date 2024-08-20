@@ -45,6 +45,10 @@ func getEnvValue(key string) string {
 	return os.Getenv(key)
 }
 
+var client string = getEnvValue("CLIENTCOLL")
+var database string = getEnvValue("DATABASE")
+var projects string = getEnvValue("PROJECTSCOLL")
+
 func setupMongodbClient() (*mongo.Client, error) {
 	serverAPI := options.ServerAPI(options.ServerAPIVersion1)
 	mongouri := getEnvValue("MONGOURI")
@@ -54,13 +58,13 @@ func setupMongodbClient() (*mongo.Client, error) {
 
 func getUserValueHandler(c *gin.Context) {
 	value := c.Param("valuetype")
-	coll := mongoClient.Database("pureweb").Collection("client")
+	coll := mongoClient.Database(database).Collection(client)
 	data := mongodbsetup.GetUserValue(coll, "pureheroky", value)
 	c.JSON(http.StatusOK, gin.H{"data": data, "status": http.StatusOK})
 }
 
 func getImageHandler(c *gin.Context) {
-	coll := mongoClient.Database("pureweb").Collection(c.Param("collname"))
+	coll := mongoClient.Database(database).Collection(c.Param("collname"))
 	imageData, contentType, err := mongodbsetup.GetImage(coll, c.Param("queryname"))
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
@@ -77,7 +81,7 @@ func getImageHandler(c *gin.Context) {
 
 func getProjectHandler(c *gin.Context) {
 	prjId := c.Param("projectid")
-	coll := mongoClient.Database("pureweb").Collection("projects")
+	coll := mongoClient.Database(database).Collection(projects)
 	data := mongodbsetup.GetProject(coll, prjId)
 	c.JSON(http.StatusOK, gin.H{"data": data, "status": http.StatusOK})
 }
@@ -86,7 +90,7 @@ func uploadImageHandler(c *gin.Context) {
 	id := c.Param("id")
 	query := c.Param("query")
 	image := c.Param("imagename")
-	coll := mongoClient.Database("pureweb").Collection(query)
+	coll := mongoClient.Database(database).Collection(query)
 	err := mongodbsetup.SaveImageInDB(coll, id, "temp/"+image)
 	if err != nil {
 		log.Fatal(err)
@@ -99,7 +103,7 @@ func createProjectHandler(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	coll := mongoClient.Database("pureweb").Collection("projects")
+	coll := mongoClient.Database(database).Collection(projects)
 	_, err := coll.InsertOne(context.Background(), project)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
