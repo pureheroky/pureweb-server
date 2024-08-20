@@ -1,3 +1,8 @@
+/*
+	Utils that created for making some specific
+	requests to data base
+*/
+
 package mongodbsetup
 
 import (

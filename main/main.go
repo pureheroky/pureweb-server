@@ -14,8 +14,16 @@ import (
 )
 
 var mongoClient *mongo.Client
+var client string = getEnvValue("CLIENTCOLL")
+var database string = getEnvValue("DATABASE")
+var projects string = getEnvValue("PROJECTCOLL")
 
 func main() {
+	/*
+		Initialize the MongoDB client and check for errors.
+		Setup the Gin router with necessary middleware and routes.
+		Start the Gin server on localhost:8080.
+	*/
 	var err error
 	mongoClient, err = setupMongodbClient()
 	if err != nil {
@@ -36,6 +44,10 @@ func main() {
 }
 
 func getEnvValue(key string) string {
+	/*
+		Load environment variables from a .env file.
+		Return the value of the specified environment variable.
+	*/
 	err := godotenv.Load(".env")
 
 	if err != nil {
@@ -45,11 +57,11 @@ func getEnvValue(key string) string {
 	return os.Getenv(key)
 }
 
-var client string = getEnvValue("CLIENTCOLL")
-var database string = getEnvValue("DATABASE")
-var projects string = getEnvValue("PROJECTSCOLL")
-
 func setupMongodbClient() (*mongo.Client, error) {
+	/*
+		Create a MongoDB client with the URI obtained from environment variables.
+		Set the server API version and return the client instance.
+	*/
 	serverAPI := options.ServerAPI(options.ServerAPIVersion1)
 	mongouri := getEnvValue("MONGOURI")
 	opts := options.Client().ApplyURI(mongouri).SetServerAPIOptions(serverAPI)
@@ -57,6 +69,10 @@ func setupMongodbClient() (*mongo.Client, error) {
 }
 
 func getUserValueHandler(c *gin.Context) {
+	/*
+		Extract the value type from the request parameters.
+		Retrieve user value from the MongoDB collection and send it in the response.
+	*/
 	value := c.Param("valuetype")
 	coll := mongoClient.Database(database).Collection(client)
 	data := mongodbsetup.GetUserValue(coll, "pureheroky", value)
@@ -64,6 +80,11 @@ func getUserValueHandler(c *gin.Context) {
 }
 
 func getImageHandler(c *gin.Context) {
+	/*
+		Extract collection name and query name from request parameters.
+		Retrieve image data and content type from the MongoDB collection.
+		Send image data in the response with appropriate content type.
+	*/
 	coll := mongoClient.Database(database).Collection(c.Param("collname"))
 	imageData, contentType, err := mongodbsetup.GetImage(coll, c.Param("queryname"))
 	if err != nil {
@@ -80,6 +101,10 @@ func getImageHandler(c *gin.Context) {
 }
 
 func getProjectHandler(c *gin.Context) {
+	/*
+		Extract project ID from request parameters.
+		Retrieve project details from the MongoDB collection and send them in the response.
+	*/
 	prjId := c.Param("projectid")
 	coll := mongoClient.Database(database).Collection(projects)
 	data := mongodbsetup.GetProject(coll, prjId)
@@ -87,6 +112,11 @@ func getProjectHandler(c *gin.Context) {
 }
 
 func uploadImageHandler(c *gin.Context) {
+	/*
+		Extract parameters for image upload from the request.
+		Save the image to the database using the specified parameters.
+		Log fatal errors if any occur during the upload process.
+	*/
 	id := c.Param("id")
 	query := c.Param("query")
 	image := c.Param("imagename")
@@ -98,6 +128,11 @@ func uploadImageHandler(c *gin.Context) {
 }
 
 func createProjectHandler(c *gin.Context) {
+	/*
+		Bind the incoming JSON data to the Project struct.
+		Insert the project data into the MongoDB collection.
+		Send appropriate responses based on the success or failure of the insertion.
+	*/
 	var project mongodbsetup.Project
 	if err := c.BindJSON(&project); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -113,6 +148,10 @@ func createProjectHandler(c *gin.Context) {
 }
 
 func corsMiddleware() gin.HandlerFunc {
+	/*
+		Set CORS headers to allow requests from "https://pureheroky.com".
+		Handle preflight OPTIONS requests with a 204 status code.
+	*/
 	return func(c *gin.Context) {
 		c.Writer.Header().Set("Access-Control-Allow-Origin", "https://pureheroky.com")
 		c.Writer.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE")

@@ -15,6 +15,7 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
+// User represents a user document in the MongoDB collection.
 type User struct {
 	ID       string   `json:"_id"`
 	Age      int64    `json:"age"`
@@ -26,10 +27,12 @@ type User struct {
 	Skills   []string `json:"skills"`
 }
 
+// Skills represents a list of skills.
 type Skills struct {
 	Skills []string `json:"skills"`
 }
 
+// Project represents a project document in the MongoDB collection.
 type Project struct {
 	ID          string             `json:"id"`
 	Name        string             `json:"name"`
@@ -43,6 +46,10 @@ type Project struct {
 }
 
 func capitalize(s string) string {
+	/*
+		If the string is empty, return it as is.
+		Capitalize the first letter of the string and return the result.
+	*/
 	if len(s) == 0 {
 		return s
 	}
@@ -52,6 +59,11 @@ func capitalize(s string) string {
 }
 
 func SaveImageInDB(coll *mongo.Collection, id, imagePath string) error {
+	/*
+		Read the image file from the specified path.
+		Encode the file data to base64 and update the MongoDB document with the encoded image.
+		Return any errors encountered during the process.
+	*/
 	fileData, err := os.ReadFile(imagePath)
 	if err != nil {
 		return err
@@ -66,6 +78,10 @@ func SaveImageInDB(coll *mongo.Collection, id, imagePath string) error {
 }
 
 func getFieldValue(v interface{}, key string) string {
+	/*
+		Use reflection to get the value of a nested field in a struct.
+		Capitalize field names and return the field value as a string.
+	*/
 	rv := reflect.ValueOf(v)
 	keys := strings.Split(key, ".")
 
@@ -82,6 +98,11 @@ func getFieldValue(v interface{}, key string) string {
 }
 
 func GetImage(coll *mongo.Collection, id string) ([]byte, string, error) {
+	/*
+		Find a document by ID and retrieve the base64 encoded image data.
+		Decode the image data and return the image bytes and content type.
+		Return errors if the document is not found or decoding fails.
+	*/
 	var result bson.M
 	filter := bson.D{{Key: "id", Value: id}}
 
@@ -106,6 +127,11 @@ func GetImage(coll *mongo.Collection, id string) ([]byte, string, error) {
 }
 
 func GetUserValue(coll *mongo.Collection, title string, key string) string {
+	/*
+		Find a user document by name and decode it into a User struct.
+		Retrieve the value of a specified field using reflection.
+		Return the field value as a string.
+	*/
 	var result bson.M
 	err := coll.FindOne(context.TODO(), bson.D{{Key: "name", Value: title}}).Decode(&result)
 
@@ -130,6 +156,11 @@ func GetUserValue(coll *mongo.Collection, title string, key string) string {
 }
 
 func GetProject(coll *mongo.Collection, id string) *bson.M {
+	/*
+		Find a project document by ID and return the result.
+		If the project is not found, print an error message.
+		Return the project document or nil if not found.
+	*/
 	var result bson.M
 	err := coll.FindOne(context.TODO(), bson.D{{Key: "id", Value: id}}).Decode(&result)
 
