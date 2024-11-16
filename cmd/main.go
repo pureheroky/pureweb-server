@@ -3,11 +3,11 @@ package main
 import (
 	"context"
 	"log"
-	"pureheroky.com/mongodbsetup/models"
-	"pureheroky.com/mongodbsetup/mongodbsetup"
+	"pureheroky.com/server/models"
+	"pureheroky.com/server/mongodbsetup"
 
 	"github.com/gin-gonic/gin"
-	"pureheroky.com/mongodbsetup/routes"
+	"pureheroky.com/server/routes"
 )
 
 func main() {

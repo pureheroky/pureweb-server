@@ -6,64 +6,32 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"go.mongodb.org/mongo-driver/mongo/options"
 	"os"
-	"reflect"
-	"strings"
-	"unicode"
+	"pureheroky.com/server/config"
+	"pureheroky.com/server/models"
+	"pureheroky.com/server/utils"
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
-// User represents a user document in the MongoDB collection.
-type User struct {
-	ID       string   `json:"_id"`
-	Age      int64    `json:"age"`
-	Gitlink  string   `json:"gitlink"`
-	Image    string   `json:"image"`
-	Username string   `json:"name"`
-	Tglink   string   `json:"tglink"`
-	Status   bool     `json:"status"`
-	Skills   []string `json:"skills"`
+/*
+SetupMongodbClient connecting to database and return
+connection to it
+*/
+func SetupMongodbClient() (*mongo.Client, error) {
+	serverAPI := options.ServerAPI(options.ServerAPIVersion1)
+	opts := options.Client().ApplyURI(config.MongoURI).SetServerAPIOptions(serverAPI)
+	return mongo.Connect(context.Background(), opts)
 }
 
-// Skills represents a list of skills.
-type Skills struct {
-	Skills []string `json:"skills"`
-}
-
-// Project represents a project document in the MongoDB collection.
-type Project struct {
-	ID          string             `json:"id"`
-	Name        string             `json:"name"`
-	PrjGitlink  string             `json:"prjgitlink"`
-	PrjImage    string             `json:"image"`
-	PrjStatus   string             `json:"prjstatus"`
-	PrjComplete string             `json:"prjcomplete"`
-	PrjDate     string             `json:"prjdate"`
-	PrjDesc     string             `json:"prjDesc"`
-	PrjWeblink  string             `json:"prjweblink"`
-}
-
-func capitalize(s string) string {
-	/*
-		If the string is empty, return it as is.
-		Capitalize the first letter of the string and return the result.
-	*/
-	if len(s) == 0 {
-		return s
-	}
-	runes := []rune(s)
-	runes[0] = unicode.ToUpper(runes[0])
-	return string(runes)
-}
-
+/*
+SaveImageInDB read the image file from the specified path.
+Encode the file data to base64 and update the MongoDB document with the encoded image.
+Return any errors encountered during the process.
+*/
 func SaveImageInDB(coll *mongo.Collection, id, imagePath string) error {
-	/*
-		Read the image file from the specified path.
-		Encode the file data to base64 and update the MongoDB document with the encoded image.
-		Return any errors encountered during the process.
-	*/
 	fileData, err := os.ReadFile(imagePath)
 	if err != nil {
 		return err
@@ -77,32 +45,12 @@ func SaveImageInDB(coll *mongo.Collection, id, imagePath string) error {
 	return err
 }
 
-func getFieldValue(v interface{}, key string) string {
-	/*
-		Use reflection to get the value of a nested field in a struct.
-		Capitalize field names and return the field value as a string.
-	*/
-	rv := reflect.ValueOf(v)
-	keys := strings.Split(key, ".")
-
-	for _, k := range keys {
-		k = capitalize(k)
-		rv = reflect.Indirect(rv).FieldByName(k)
-		if !rv.IsValid() {
-			fmt.Printf("No such field: %s in obj\n", k)
-			return ""
-		}
-	}
-
-	return fmt.Sprintf("%v", rv.Interface())
-}
-
+/*
+GetImage find a document by ID and retrieve the base64 encoded image data.
+Decode the image data and return the image bytes and content type.
+Return errors if the document is not found or decoding fails.
+*/
 func GetImage(coll *mongo.Collection, id string) ([]byte, string, error) {
-	/*
-		Find a document by ID and retrieve the base64 encoded image data.
-		Decode the image data and return the image bytes and content type.
-		Return errors if the document is not found or decoding fails.
-	*/
 	var result bson.M
 	filter := bson.D{{Key: "id", Value: id}}
 
@@ -126,52 +74,80 @@ func GetImage(coll *mongo.Collection, id string) ([]byte, string, error) {
 	return decodedImage, contentType, nil
 }
 
-func GetUserValue(coll *mongo.Collection, title string, key string) string {
-	/*
-		Find a user document by name and decode it into a User struct.
-		Retrieve the value of a specified field using reflection.
-		Return the field value as a string.
-	*/
+/*
+GetUserValue find a user document by name and decode it into a User struct.
+Retrieve the value of a specified field using reflection.
+Return the field value as a string.
+*/
+func GetUserValue(coll *mongo.Collection, title string, key string) (string, error) {
 	var result bson.M
 	err := coll.FindOne(context.TODO(), bson.D{{Key: "name", Value: title}}).Decode(&result)
-
 	if err != nil {
-		panic(err)
+		return "", err
 	}
 
 	user := &result
 	jsonData, err := json.MarshalIndent(user, "", "    ")
 	if err != nil {
-		panic(err)
+		return "", err
 	}
 
-	var resStruct User
-
+	var resStruct models.User
 	err = json.Unmarshal(jsonData, &resStruct)
+
 	if err != nil {
 		fmt.Printf("Error unmarshalling json: %v\n", err)
-		panic(err)
+		return "", err
 	}
-	return getFieldValue(resStruct, key)
+	return utils.GetFieldValue(resStruct, key), nil
 }
 
-func GetProject(coll *mongo.Collection, id string) *bson.M {
-	/*
-		Find a project document by ID and return the result.
-		If the project is not found, print an error message.
-		Return the project document or nil if not found.
-	*/
+/*
+GetProject find a project document by ID and return the result.
+If the project is not found, print an error message.
+Return the project document or nil if not found.
+*/
+func GetProject(coll *mongo.Collection, id string) (*bson.M, error) {
 	var result bson.M
 	err := coll.FindOne(context.TODO(), bson.D{{Key: "id", Value: id}}).Decode(&result)
 
-	if err == mongo.ErrNoDocuments {
+	if errors.Is(err, mongo.ErrNoDocuments) {
 		fmt.Printf("No project was found with the id %s\n", id)
-		return nil
+		return nil, nil
 	}
 
 	if err != nil {
 		panic(err)
 	}
-	return &result
+	return &result, nil
 }
 
+//func SetUserSkills(coll *mongo.Collection, skills []string) {
+//	filter := bson.D{{Key: "name", Value: "pureheroky"}}
+//	update := bson.M{
+//		"$push": bson.M{
+//			"skills": skills,
+//		},
+//	}
+//
+//	result, err := coll.UpdateOne(context.TODO(), filter, update)
+//	if err != nil {
+//		log.Fatal(err)
+//	}
+//
+//	fmt.Printf("Matched %v documents and updated %v documents.\n", result.MatchedCount, result.ModifiedCount)
+//}
+//
+//func SetUpProjects(client *mongo.Client, id string, name string, git string, img string, status string, complete string, date string, desc string, weblink string) {
+//	prjcoll := client.Database("pureweb").Collection("projects")
+//
+//	docs := []interface{}{
+//		Project{ID: id, Name: name, PrjGitlink: git, PrjImage: img, PrjStatus: status, PrjComplete: complete, PrjDate: date, PrjDesc: desc, PrjWeblink: weblink},
+//	}
+//
+//	_, err := prjcoll.InsertMany(context.TODO(), docs)
+//
+//	if err != nil {
+//		panic(err)
+//	}
+//}
