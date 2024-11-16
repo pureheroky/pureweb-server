@@ -7,13 +7,15 @@ import (
 )
 
 /*
-LogIPMiddleware allow to find out users IP
-that need to be detected if someone will try
-to send something on server and etc
+LogIPMiddleware logs the user's IP address along with
+the request method and path to track any incoming requests
 */
 func LogIPMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		clientIP := c.ClientIP()
+		requestMethod := c.Request.Method
+		requestPath := c.Request.URL.Path
+
 		file, err := os.OpenFile("../logs/ip_logs.txt", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 		if err != nil {
 			log.Printf("Error opening or creating file: %v", err)
@@ -22,7 +24,9 @@ func LogIPMiddleware() gin.HandlerFunc {
 		}
 		defer file.Close()
 
-		if _, err := file.WriteString(clientIP + "\n"); err != nil {
+		logEntry := clientIP + " - " + requestMethod + " " + requestPath + "\n"
+
+		if _, err := file.WriteString(logEntry); err != nil {
 			log.Printf("Error writing to file: %v", err)
 		}
 
