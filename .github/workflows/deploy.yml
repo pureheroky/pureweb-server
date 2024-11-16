@@ -30,15 +30,9 @@ jobs:
 
       - name: Deploy to server
         run: |
-          ssh -o StrictHostKeyChecking=no root@${{ secrets.SERVER_IP }} << 'EOF'
-            systemctl stop pureweb-server-new.service
-          
-            mkdir -p /home/pureweb-server/build
-            rm -f /home/pureweb-server/build/pureweb-server
-            scp build/pureweb-server root@${{ secrets.SERVER_IP }}:/home/pureweb-server/build
-          
-            systemctl start pureweb-server-new.service
-          EOF
+          ssh -o StrictHostKeyChecking=no root@${{ secrets.SERVER_IP }} "systemctl stop pureweb-server-new.service && mkdir -p /home/pureweb-server/build"
+          scp -o StrictHostKeyChecking=no build/pureweb-server root@${{ secrets.SERVER_IP }}:/home/pureweb-server/build
+          ssh -o StrictHostKeyChecking=no root@${{ secrets.SERVER_IP }} "systemctl start pureweb-server-new.service"
         env:
           SERVER_USER: root
           SERVER_IP: ${{ secrets.SERVER_IP }}
